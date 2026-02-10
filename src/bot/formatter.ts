@@ -1,12 +1,12 @@
 const TELEGRAM_MAX_LENGTH = 4096;
-// Sayfa gostergesi icin yeterli bosluk birak
+// Leave room for pagination indicator
 const SAFE_MAX = TELEGRAM_MAX_LENGTH - 20;
 
 /**
- * Claude ciktisindaki Markdown'i Telegram HTML'e cevir.
+ * Convert Markdown from Claude output to Telegram HTML.
  */
 export function formatForTelegram(text: string): string {
-  // Oncelikle HTML ozel karakterlerini escape et (kod bloklari haric)
+  // Escape HTML special chars first (except inside code blocks)
   const lines = text.split('\n');
   const result: string[] = [];
   let inCodeBlock = false;
@@ -14,17 +14,17 @@ export function formatForTelegram(text: string): string {
   let codeBuffer: string[] = [];
 
   for (const line of lines) {
-    // Kod blogu baslangici/bitisi
+    // Code block start/end
     const codeBlockMatch = line.match(/^```(\w*)$/);
     if (codeBlockMatch) {
       if (inCodeBlock) {
-        // Kod blogu kapaniyor
+        // Close code block
         result.push(`<pre><code${codeBlockLang ? ` class="language-${codeBlockLang}"` : ''}>${codeBuffer.join('\n')}</code></pre>`);
         codeBuffer = [];
         inCodeBlock = false;
         codeBlockLang = '';
       } else {
-        // Kod blogu aciliyor
+        // Open code block
         inCodeBlock = true;
         codeBlockLang = codeBlockMatch[1] || '';
       }
@@ -36,7 +36,7 @@ export function formatForTelegram(text: string): string {
       continue;
     }
 
-    // Normal satir: inline formatlama
+    // Normal line: inline formatting
     let formatted = escapeHtml(line);
 
     // Inline code: `code` -> <code>code</code>
@@ -45,13 +45,13 @@ export function formatForTelegram(text: string): string {
     // Bold: **text** -> <b>text</b>
     formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
 
-    // Italic: *text* -> <i>text</i> (sadece tek yildiz, bold degilse)
+    // Italic: *text* -> <i>text</i> (single asterisk only, not bold)
     formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<i>$1</i>');
 
     result.push(formatted);
   }
 
-  // Kapanmamis kod blogu varsa kapat
+  // Close unclosed code block
   if (inCodeBlock && codeBuffer.length > 0) {
     result.push(`<pre><code>${codeBuffer.join('\n')}</code></pre>`);
   }
@@ -60,8 +60,8 @@ export function formatForTelegram(text: string): string {
 }
 
 /**
- * Mesaji Telegram 4096 karakter limitine gore bol.
- * Akilli bolme: kod blogu > paragraf > satir > sert kesim.
+ * Split message at Telegram's 4096 char limit.
+ * Smart splitting: code block > paragraph > line > hard cut.
  */
 export function splitMessage(text: string): string[] {
   if (text.length <= SAFE_MAX) {
@@ -80,7 +80,7 @@ export function splitMessage(text: string): string[] {
     let splitIdx = findSplitPoint(remaining, SAFE_MAX);
     let chunk = remaining.slice(0, splitIdx);
 
-    // Acik <pre> tag'ini kapat
+    // Close open <pre> tag
     const openPre = (chunk.match(/<pre>/g) || []).length;
     const closePre = (chunk.match(/<\/pre>/g) || []).length;
     if (openPre > closePre) {
@@ -90,7 +90,7 @@ export function splitMessage(text: string): string[] {
     parts.push(chunk);
     remaining = remaining.slice(splitIdx).trimStart();
 
-    // Kapanan pre varsa yeniden ac
+    // Reopen <pre> if it was closed mid-block
     if (openPre > closePre && remaining.length > 0) {
       remaining = '<pre><code>' + remaining;
     }
@@ -102,31 +102,31 @@ export function splitMessage(text: string): string[] {
 function findSplitPoint(text: string, maxLen: number): number {
   const searchRegion = text.slice(0, maxLen);
 
-  // 1. </pre> sonrasi
+  // 1. After </pre>
   const preEnd = searchRegion.lastIndexOf('</pre>');
   if (preEnd > maxLen * 0.3) {
     return preEnd + 6;
   }
 
-  // 2. Cift yeni satir (paragraf sonu)
+  // 2. Double newline (paragraph end)
   const parEnd = searchRegion.lastIndexOf('\n\n');
   if (parEnd > maxLen * 0.3) {
     return parEnd + 2;
   }
 
-  // 3. Tek yeni satir
+  // 3. Single newline
   const lineEnd = searchRegion.lastIndexOf('\n');
   if (lineEnd > maxLen * 0.3) {
     return lineEnd + 1;
   }
 
-  // 4. Bosluk
+  // 4. Space
   const spaceEnd = searchRegion.lastIndexOf(' ');
   if (spaceEnd > maxLen * 0.3) {
     return spaceEnd + 1;
   }
 
-  // 5. Sert kesim
+  // 5. Hard cut
   return maxLen;
 }
 

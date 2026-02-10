@@ -24,7 +24,7 @@ export function runPrompt(
     args.push('--resume', resumeSessionId);
   }
 
-  logger.info({ projectPath, resume: !!resumeSessionId }, 'Claude Code baslatiliyor');
+  logger.info({ projectPath, resume: !!resumeSessionId }, 'Starting Claude Code');
 
   const child = spawn(config.CLAUDE_BIN, args, {
     cwd: projectPath,
@@ -41,7 +41,7 @@ export function runPrompt(
 
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-      reject(new Error('Timeout: Claude Code yanit vermedi'));
+      reject(new Error('Timeout: Claude Code did not respond'));
     }, config.RESPONSE_TIMEOUT_MS);
 
     child.on('close', (code) => {
@@ -51,7 +51,7 @@ export function runPrompt(
 
       if (code !== 0 && !stdout) {
         resolve({
-          result: stderr || `Claude Code hata ile cikti (code: ${code})`,
+          result: stderr || `Claude Code exited with error (code: ${code})`,
           sessionId: null,
           costUsd: null,
           isError: true,
@@ -68,9 +68,9 @@ export function runPrompt(
           isError: json.is_error ?? false,
         });
       } catch {
-        // JSON parse edemiyorsak raw text dondur
+        // JSON parse failed, return raw text
         resolve({
-          result: stdout || stderr || 'Bos yanit',
+          result: stdout || stderr || 'Empty response',
           sessionId: null,
           costUsd: null,
           isError: false,

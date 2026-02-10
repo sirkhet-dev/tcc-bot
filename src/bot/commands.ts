@@ -6,9 +6,9 @@ import { getState } from '../state/user-state.js';
 export async function startCommand(ctx: Context): Promise<void> {
   const projectList = getProjects().map((p) => `  <b>${p.name}</b> - ${p.desc}`).join('\n');
   await ctx.reply(
-    `Merhaba! Claude Code Telegram Bot'a hosgeldiniz.\n\n` +
-      `Kullanilabilir projeler:\n${projectList}\n\n` +
-      `Proje secmek icin /project &lt;isim&gt; veya /projects yazin.`,
+    `Hello! Welcome to Claude Code Telegram Bot.\n\n` +
+      `Available projects:\n${projectList}\n\n` +
+      `Use /project &lt;name&gt; or /projects to select a project.`,
     { parse_mode: 'HTML' },
   );
 }
@@ -18,7 +18,7 @@ export async function projectsCommand(ctx: Context): Promise<void> {
   for (const p of getProjects()) {
     keyboard.text(`${p.name}`, `select_project:${p.name}`).row();
   }
-  await ctx.reply('Proje secin:', { reply_markup: keyboard });
+  await ctx.reply('Select a project:', { reply_markup: keyboard });
 }
 
 export async function projectCommand(ctx: Context): Promise<void> {
@@ -28,7 +28,7 @@ export async function projectCommand(ctx: Context): Promise<void> {
   const name = args[0];
 
   if (!name) {
-    await ctx.reply('Kullanim: /project &lt;isim&gt;\nProjeleri gormek icin: /projects', {
+    await ctx.reply('Usage: /project &lt;name&gt;\nList projects: /projects', {
       parse_mode: 'HTML',
     });
     return;
@@ -37,7 +37,7 @@ export async function projectCommand(ctx: Context): Promise<void> {
   const project = findProject(name);
   if (!project) {
     await ctx.reply(
-      `Proje bulunamadi: <code>${escapeHtml(name)}</code>\nProjeleri gormek icin: /projects`,
+      `Project not found: <code>${escapeHtml(name)}</code>\nList projects: /projects`,
       { parse_mode: 'HTML' },
     );
     return;
@@ -46,7 +46,7 @@ export async function projectCommand(ctx: Context): Promise<void> {
   const state = getState(userId);
   state.activeProject = project.name;
   state.sessionId = null;
-  await ctx.reply(`Aktif proje: <b>${project.name}</b>\nArtik mesaj gonderebilirsiniz.`, {
+  await ctx.reply(`Active project: <b>${project.name}</b>\nYou can now send messages.`, {
     parse_mode: 'HTML',
   });
 }
@@ -59,20 +59,20 @@ export async function selectProjectCallback(ctx: Context): Promise<void> {
   const name = data.replace('select_project:', '');
   const project = findProject(name);
   if (!project) {
-    await ctx.answerCallbackQuery({ text: 'Proje bulunamadi' });
+    await ctx.answerCallbackQuery({ text: 'Project not found' });
     return;
   }
 
   const state = getState(userId);
   state.activeProject = project.name;
   state.sessionId = null;
-  await ctx.answerCallbackQuery({ text: `Proje secildi: ${project.name}` });
+  await ctx.answerCallbackQuery({ text: `Project selected: ${project.name}` });
   try {
-    await ctx.editMessageText(`Aktif proje: <b>${project.name}</b>\nArtik mesaj gonderebilirsiniz.`, {
+    await ctx.editMessageText(`Active project: <b>${project.name}</b>\nYou can now send messages.`, {
       parse_mode: 'HTML',
     });
   } catch {
-    // Mesaj zaten ayni icerige sahipse hata verir, yoksay
+    // Throws if message content is unchanged, ignore
   }
 }
 
@@ -80,7 +80,7 @@ export async function newCommand(ctx: Context): Promise<void> {
   const userId = ctx.from!.id;
   const state = getState(userId);
   state.sessionId = null;
-  await ctx.reply('Yeni oturum baslatildi. Session ID sifirlandi.');
+  await ctx.reply('New session started. Session ID reset.');
 }
 
 export async function stopCommand(ctx: Context): Promise<void> {
@@ -88,14 +88,14 @@ export async function stopCommand(ctx: Context): Promise<void> {
   const state = getState(userId);
 
   if (!state.busy || !state.currentProcess) {
-    await ctx.reply('Calisan bir islem yok.');
+    await ctx.reply('No running process.');
     return;
   }
 
   state.currentProcess.kill('SIGTERM');
   state.busy = false;
   state.currentProcess = null;
-  await ctx.reply('Islem iptal edildi.');
+  await ctx.reply('Process cancelled.');
 }
 
 export async function statusCommand(ctx: Context): Promise<void> {
@@ -103,25 +103,25 @@ export async function statusCommand(ctx: Context): Promise<void> {
   const state = getState(userId);
 
   const lines = [
-    `<b>Durum</b>`,
-    `Proje: ${state.activeProject ? `<code>${state.activeProject}</code>` : 'Secilmedi'}`,
-    `Oturum: ${state.sessionId ? `<code>${state.sessionId.slice(0, 8)}...</code>` : 'Yok'}`,
-    `Islem: ${state.busy ? 'Devam ediyor' : 'Bos'}`,
+    `<b>Status</b>`,
+    `Project: ${state.activeProject ? `<code>${state.activeProject}</code>` : 'Not selected'}`,
+    `Session: ${state.sessionId ? `<code>${state.sessionId.slice(0, 8)}...</code>` : 'None'}`,
+    `Process: ${state.busy ? 'Running' : 'Idle'}`,
   ];
   await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
 }
 
 export async function helpCommand(ctx: Context): Promise<void> {
   await ctx.reply(
-    `<b>Komutlar</b>\n\n` +
-      `/start - Karsilama\n` +
-      `/projects - Proje listesi (butonlu)\n` +
-      `/project &lt;isim&gt; - Proje sec\n` +
-      `/new - Yeni oturum baslat\n` +
-      `/stop - Calisan islemi iptal et\n` +
-      `/status - Durum bilgisi\n` +
-      `/help - Bu mesaj\n\n` +
-      `Normal metin mesajlari aktif projeye Claude Code prompt olarak gonderilir.`,
+    `<b>Commands</b>\n\n` +
+      `/start - Welcome\n` +
+      `/projects - Project list (buttons)\n` +
+      `/project &lt;name&gt; - Select project\n` +
+      `/new - Start new session\n` +
+      `/stop - Cancel running process\n` +
+      `/status - Status info\n` +
+      `/help - This message\n\n` +
+      `Regular text messages are sent as Claude Code prompts to the active project.`,
     { parse_mode: 'HTML' },
   );
 }

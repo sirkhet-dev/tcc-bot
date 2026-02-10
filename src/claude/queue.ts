@@ -10,23 +10,23 @@ export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void>
   const state = getState(userId);
 
   if (!state.activeProject) {
-    await ctx.reply('Once bir proje secin: /projects');
+    await ctx.reply('Select a project first: /projects');
     return;
   }
 
   if (state.busy) {
-    await ctx.reply('Onceki islem devam ediyor. Bekleyin veya /stop ile iptal edin.');
+    await ctx.reply('Previous operation in progress. Wait or /stop to cancel.');
     return;
   }
 
   const project = findProject(state.activeProject);
   if (!project) {
-    await ctx.reply('Aktif proje bulunamadi. /projects ile yeniden secin.');
+    await ctx.reply('Active project not found. Select again: /projects');
     return;
   }
 
   state.busy = true;
-  const statusMsg = await ctx.reply('Isleniyor...');
+  const statusMsg = await ctx.reply('Processing...');
 
   try {
     const { promise, process: child } = runPrompt(prompt, project.path, state.sessionId);
@@ -41,11 +41,11 @@ export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void>
       state.sessionId = result.sessionId;
     }
 
-    // "Isleniyor..." mesajini sil
+    // Delete "Processing..." message
     try {
       await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id);
     } catch {
-      // Silinemezse devam et
+      // Ignore if can't delete
     }
 
     const formatted = formatForTelegram(result.result);
@@ -56,27 +56,27 @@ export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void>
       try {
         await ctx.reply(text, { parse_mode: 'HTML' });
       } catch {
-        // HTML parse hatasi olursa plain text gonder
+        // HTML parse error fallback to plain text
         await ctx.reply(parts[i]);
       }
     }
 
     if (result.costUsd !== null) {
-      logger.info({ costUsd: result.costUsd, sessionId: result.sessionId }, 'Claude Code tamamlandi');
+      logger.info({ costUsd: result.costUsd, sessionId: result.sessionId }, 'Claude Code completed');
     }
   } catch (err) {
     state.currentProcess = null;
     state.busy = false;
 
-    const message = err instanceof Error ? err.message : 'Bilinmeyen hata';
-    logger.error({ err }, 'Claude Code hatasi');
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error({ err }, 'Claude Code error');
 
     try {
       await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id);
     } catch {
-      // Silinemezse devam et
+      // Ignore if can't delete
     }
 
-    await ctx.reply(`Hata: ${message}`);
+    await ctx.reply(`Error: ${message}`);
   }
 }

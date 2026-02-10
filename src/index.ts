@@ -6,7 +6,7 @@ const bot = createBot();
 
 // Graceful shutdown
 function shutdown(signal: string) {
-  logger.info({ signal }, 'Kapatiliyor...');
+  logger.info({ signal }, 'Shutting down...');
   bot.stop();
   process.exit(0);
 }
@@ -14,12 +14,12 @@ function shutdown(signal: string) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-logger.info('Bot baslatiliyor...');
+logger.info('Starting bot...');
 bot.start({
   onStart: () => {
     logger.info(
       { allowedUser: config.ALLOWED_USER_ID },
-      'Bot calisiyor (long polling)',
+      'Bot is running (long polling)',
     );
   },
 });

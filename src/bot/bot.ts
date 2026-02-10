@@ -32,7 +32,7 @@ export function createBot(): Bot {
   bot.on('message:text', handleMessage);
 
   bot.catch((err) => {
-    logger.error({ err: err.error, ctx: err.ctx?.update?.update_id }, 'Bot Error');
+    logger.error({ err: err.error, ctx: err.ctx?.update?.update_id }, 'Bot error');
   });
 
   return bot;
