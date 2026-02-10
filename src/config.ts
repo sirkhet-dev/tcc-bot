@@ -5,6 +5,7 @@ const envSchema = z.object({
   BOT_TOKEN: z.string().min(1, 'BOT_TOKEN is required'),
   ALLOWED_USER_ID: z.coerce.number().int().positive('A valid Telegram user ID is required'),
   CLAUDE_BIN: z.string().default('claude'),
+  CLAUDE_SKIP_PERMISSIONS: z.coerce.boolean().default(false),
   WORKSPACE_ROOT: z.string().default('./projects'),
   RESPONSE_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
 });

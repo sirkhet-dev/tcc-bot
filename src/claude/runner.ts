@@ -14,11 +14,11 @@ export function runPrompt(
   projectPath: string,
   resumeSessionId?: string | null,
 ): { promise: Promise<ClaudeResult>; process: import('node:child_process').ChildProcess } {
-  const args = [
-    '-p', prompt,
-    '--output-format', 'json',
-    '--dangerously-skip-permissions',
-  ];
+  const args = ['-p', prompt, '--output-format', 'json'];
+
+  if (config.CLAUDE_SKIP_PERMISSIONS) {
+    args.push('--dangerously-skip-permissions');
+  }
 
   if (resumeSessionId) {
     args.push('--resume', resumeSessionId);
