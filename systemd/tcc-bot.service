@@ -1,0 +1,15 @@
+[Unit]
+Description=TCC Bot - Telegram Claude Code Bot
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/tcc-bot
+ExecStart=/usr/bin/node dist/index.js
+EnvironmentFile=/path/to/tcc-bot/.env
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

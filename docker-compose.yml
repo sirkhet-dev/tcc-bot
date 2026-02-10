@@ -1,0 +1,9 @@
+services:
+  tcc-bot:
+    build: .
+    container_name: tcc-bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./projects:/app/projects:rw
