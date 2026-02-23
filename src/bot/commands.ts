@@ -1,7 +1,9 @@
 import { InlineKeyboard } from 'grammy';
 import type { Context } from 'grammy';
+import { config } from '../config.js';
 import { getProjects, findProject } from '../state/projects.js';
 import { getState } from '../state/user-state.js';
+import { getMetrics } from '../state/metrics.js';
 
 export async function startCommand(ctx: Context): Promise<void> {
   const projectList = getProjects().map((p) => `  <b>${p.name}</b> - ${p.desc}`).join('\n');
@@ -92,7 +94,13 @@ export async function stopCommand(ctx: Context): Promise<void> {
     return;
   }
 
-  state.currentProcess.kill('SIGTERM');
+  const processRef = state.currentProcess;
+  processRef.kill('SIGTERM');
+  setTimeout(() => {
+    if (processRef.exitCode === null && processRef.signalCode === null) {
+      processRef.kill('SIGKILL');
+    }
+  }, config.STOP_GRACE_MS);
   state.busy = false;
   state.currentProcess = null;
   await ctx.reply('Process cancelled.');
@@ -102,11 +110,13 @@ export async function statusCommand(ctx: Context): Promise<void> {
   const userId = ctx.from!.id;
   const state = getState(userId);
 
+  const metrics = getMetrics();
   const lines = [
     `<b>Status</b>`,
     `Project: ${state.activeProject ? `<code>${state.activeProject}</code>` : 'Not selected'}`,
     `Session: ${state.sessionId ? `<code>${state.sessionId.slice(0, 8)}...</code>` : 'None'}`,
     `Process: ${state.busy ? 'Running' : 'Idle'}`,
+    `Prompts: total=<code>${metrics.promptsTotal}</code> success=<code>${metrics.promptsSuccess}</code> error=<code>${metrics.promptsError}</code> timeout=<code>${metrics.promptsTimeout}</code>`,
   ];
   await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
 }

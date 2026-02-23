@@ -5,6 +5,7 @@
 **Access Claude Code remotely through Telegram.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.5.0-2ea043)](package.json)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![grammY](https://img.shields.io/badge/grammY-1.39+-009DC4)](https://grammy.dev/)
@@ -28,6 +29,8 @@ You (Telegram) → Bot (your server) → Claude Code CLI → Your Projects
 - **Intelligent message splitting** — Long responses split at logical boundaries (code blocks, paragraphs)
 - **Process control** — Cancel running operations with `/stop`
 - **Single-user auth** — Whitelist-based access by Telegram user ID
+- **Rate limiting and prompt caps** — Per-user request throttling and max prompt length guard
+- **Project scope control** — Optional project allowlist and Git-repo-only discovery
 - **Lightweight** — ~600 lines of TypeScript, 5 runtime dependencies
 
 ## Quick Start
@@ -94,7 +97,12 @@ Any regular text message is sent as a prompt to Claude Code in the active projec
 | `ALLOWED_USER_ID` | Yes | — | Your Telegram user ID (numeric) |
 | `CLAUDE_BIN` | No | `claude` | Path to Claude Code binary |
 | `WORKSPACE_ROOT` | No | `./projects` | Directory containing your projects |
+| `PROJECT_ALLOWLIST` | No | empty | Comma-separated project directory allowlist |
 | `RESPONSE_TIMEOUT_MS` | No | `300000` | Claude Code timeout in ms (5 min) |
+| `STOP_GRACE_MS` | No | `5000` | Grace period before SIGKILL after `/stop` |
+| `MAX_PROMPT_CHARS` | No | `6000` | Maximum Telegram message length accepted |
+| `MESSAGE_RATE_LIMIT_WINDOW_MS` | No | `60000` | Per-user rate limit window in milliseconds |
+| `MESSAGE_RATE_LIMIT_MAX` | No | `20` | Max prompts per user in each rate-limit window |
 
 ## Deployment
 
@@ -124,6 +132,13 @@ docker compose up -d
 
 # View logs
 docker compose logs -f
+```
+
+## Development
+
+```bash
+npm run dev
+npm run build
 ```
 
 ## How It Works
@@ -201,6 +216,8 @@ src/
 - **Silent rejection** — Unauthorized users receive no response (no information leakage)
 - **No secrets in code** — All sensitive values loaded from environment
 - **Process isolation** — Each Claude execution runs as a separate subprocess
+- **Rate limit defaults** — Per-user limits reduce prompt flood and abuse risk
+- **Project boundary controls** — Project list is limited to Git repos in `WORKSPACE_ROOT` (optionally allowlisted)
 
 > **Note:** This bot uses `--dangerously-skip-permissions` flag when calling Claude Code to enable non-interactive execution. Only run this on machines you trust, with projects you control.
 

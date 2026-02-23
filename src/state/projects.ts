@@ -12,9 +12,15 @@ const SELF_DIR = 'tcc-bot';
 
 function scanProjects(): Project[] {
   const root = config.WORKSPACE_ROOT;
+  const allowSet = new Set(config.PROJECT_ALLOWLIST.map((name) => name.toLowerCase()));
   const entries = fs.readdirSync(root, { withFileTypes: true });
   return entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== SELF_DIR && e.name !== 'node_modules')
+    .filter((e) => {
+      if (!e.isDirectory()) return false;
+      if (e.name.startsWith('.') || e.name === SELF_DIR || e.name === 'node_modules') return false;
+      if (allowSet.size > 0 && !allowSet.has(e.name.toLowerCase())) return false;
+      return fs.existsSync(path.join(root, e.name, '.git'));
+    })
     .map((e) => ({
       name: e.name,
       path: path.join(root, e.name),

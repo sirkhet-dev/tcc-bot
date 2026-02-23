@@ -4,6 +4,7 @@ import { findProject } from '../state/projects.js';
 import { runPrompt } from './runner.js';
 import { formatForTelegram, splitMessage } from '../bot/formatter.js';
 import { logger } from '../logger.js';
+import { recordPromptError, recordPromptStart, recordPromptSuccess } from '../state/metrics.js';
 
 export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void> {
   const userId = ctx.from!.id;
@@ -29,6 +30,8 @@ export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void>
   const statusMsg = await ctx.reply('Processing...');
 
   try {
+    recordPromptStart();
+    const startedAt = Date.now();
     const { promise, process: child } = runPrompt(prompt, project.path, state.sessionId);
     state.currentProcess = child;
 
@@ -62,13 +65,18 @@ export async function enqueuePrompt(ctx: Context, prompt: string): Promise<void>
     }
 
     if (result.costUsd !== null) {
-      logger.info({ costUsd: result.costUsd, sessionId: result.sessionId }, 'Claude Code completed');
+      logger.info(
+        { costUsd: result.costUsd, sessionId: result.sessionId, durationMs: Date.now() - startedAt },
+        'Claude Code completed',
+      );
     }
+    recordPromptSuccess();
   } catch (err) {
     state.currentProcess = null;
     state.busy = false;
 
     const message = err instanceof Error ? err.message : 'Unknown error';
+    recordPromptError(message.toLowerCase().includes('timeout'));
     logger.error({ err }, 'Claude Code error');
 
     try {
